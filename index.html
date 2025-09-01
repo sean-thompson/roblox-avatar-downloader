@@ -348,89 +348,103 @@
             }
 
             async fetchAvatars() {
-                const input = this.userIdsInput.value.trim();
-                
-                if (!input) {
-                    this.showError('Please enter at least one user ID');
-                    return;
-                }
+                try {
+                    const input = this.userIdsInput.value.trim();
+                    
+                    if (!input) {
+                        this.showError('Please enter at least one user ID');
+                        return;
+                    }
 
-                const userIds = this.parseUserIds(input);
-                
-                if (userIds.length === 0) {
-                    this.showError('Please enter valid numeric user IDs');
-                    return;
-                }
+                    const userIds = this.parseUserIds(input);
+                    
+                    if (userIds.length === 0) {
+                        this.showError('Please enter valid numeric user IDs');
+                        return;
+                    }
 
-                this.allUserIds = userIds;
-                this.currentBatchIndex = 0;
-                this.avatars = [];
-                this.clearResults();
-                
-                await this.processBatch();
+                    this.clearResults();
+                    this.allUserIds = [...userIds];
+                    this.currentBatchIndex = 0;
+                    this.avatars = [];
+                    await this.processBatch();
+                } catch (error) {
+                    console.error('Error in fetchAvatars:', error);
+                    this.showError('An error occurred. Check the console for details.');
+                }
             }
 
             async processBatch() {
-                const startIndex = this.currentBatchIndex * this.batchSize;
-                const endIndex = Math.min(startIndex + this.batchSize, this.allUserIds.length);
-                const currentBatch = this.allUserIds.slice(startIndex, endIndex);
-
-                if (currentBatch.length === 0) {
-                    return;
-                }
-
-                this.fetchBtn.disabled = true;
-                this.continueBtn.disabled = true;
-                this.fetchBtn.innerHTML = '<span class="loading-spinner"></span>Processing...';
-                this.progressSection.style.display = 'block';
-
                 try {
-                    for (let i = 0; i < currentBatch.length; i += 10) {
-                        const batch = currentBatch.slice(i, i + 10);
-                        const overallProgress = startIndex + i;
-                        this.updateProgress(
-                            overallProgress, 
-                            this.allUserIds.length, 
-                            `Processing ${overallProgress + 1}-${Math.min(overallProgress + 10, endIndex)} of ${this.allUserIds.length}...`
-                        );
-                        
-                        try {
-                            const batchResults = await this.fetchAvatarBatch(batch);
-                            this.avatars.push(...batchResults);
-                            this.appendNewAvatars(batchResults);
-                        } catch (error) {
-                            console.error('Batch fetch error:', error);
-                        }
-                        
-                        if (i + 10 < currentBatch.length) {
-                            await this.delay(500);
-                        }
+                    const startIndex = this.currentBatchIndex * this.batchSize;
+                    const endIndex = Math.min(startIndex + this.batchSize, this.allUserIds.length);
+                    const currentBatch = this.allUserIds.slice(startIndex, endIndex);
+
+                    if (currentBatch.length === 0) {
+                        return;
                     }
 
-                    this.currentBatchIndex++;
-                    const hasMore = endIndex < this.allUserIds.length;
-                    
-                    if (hasMore) {
-                        const remaining = this.allUserIds.length - endIndex;
-                        this.updateProgress(endIndex, this.allUserIds.length, `Processed ${endIndex} of ${this.allUserIds.length}. Click Continue for ${remaining} more.`);
-                        this.continueBtn.style.display = 'inline-block';
-                        this.continueBtn.textContent = `Continue Processing (${remaining} remaining)`;
-                    } else {
-                        this.updateProgress(this.allUserIds.length, this.allUserIds.length, `Complete! Processed all ${this.allUserIds.length} user IDs.`);
-                        setTimeout(() => {
-                            this.progressSection.style.display = 'none';
-                        }, 3000);
+                    this.fetchBtn.disabled = true;
+                    this.continueBtn.disabled = true;
+                    this.fetchBtn.innerHTML = '<span class="loading-spinner"></span>Processing...';
+                    this.progressSection.style.display = 'block';
+
+                    try {
+                        for (let i = 0; i < currentBatch.length; i += 10) {
+                            const batch = currentBatch.slice(i, i + 10);
+                            const overallProgress = startIndex + i;
+                            
+                            this.updateProgress(
+                                overallProgress, 
+                                this.allUserIds.length, 
+                                `Processing ${overallProgress + 1}-${Math.min(overallProgress + 10, endIndex)} of ${this.allUserIds.length}...`
+                            );
+                            
+                            try {
+                                const batchResults = await this.fetchAvatarBatch(batch);
+                                this.avatars.push(...batchResults);
+                                
+                                if (batchResults.length > 0) {
+                                    this.displayNewAvatars(batchResults);
+                                }
+                            } catch (error) {
+                                console.error('Batch fetch error:', error);
+                                this.showError(`Error fetching batch: ${error.message}`);
+                            }
+                            
+                            if (i + 10 < currentBatch.length) {
+                                await this.delay(500);
+                            }
+                        }
+
+                        this.currentBatchIndex++;
+                        const hasMore = endIndex < this.allUserIds.length;
+                        
+                        if (hasMore) {
+                            const remaining = this.allUserIds.length - endIndex;
+                            this.updateProgress(endIndex, this.allUserIds.length, `Processed ${endIndex} of ${this.allUserIds.length}. Click Continue for ${remaining} more.`);
+                            this.continueBtn.style.display = 'inline-block';
+                            this.continueBtn.textContent = `Continue Processing (${remaining} remaining)`;
+                        } else {
+                            this.updateProgress(this.allUserIds.length, this.allUserIds.length, `Complete! Processed all ${this.allUserIds.length} user IDs.`);
+                            setTimeout(() => {
+                                this.progressSection.style.display = 'none';
+                            }, 3000);
+                        }
+
+                        this.updateResultsCount();
+
+                    } catch (error) {
+                        this.showError('Failed to fetch avatars. Please try again.');
+                        console.error('Fetch error:', error);
+                    } finally {
+                        this.fetchBtn.disabled = false;
+                        this.continueBtn.disabled = false;
+                        this.fetchBtn.textContent = 'Fetch Avatars';
                     }
-
-                    this.updateResultsCount();
-
                 } catch (error) {
-                    this.showError('Failed to fetch avatars. Please try again.');
-                    console.error('Fetch error:', error);
-                } finally {
-                    this.fetchBtn.disabled = false;
-                    this.continueBtn.disabled = false;
-                    this.fetchBtn.textContent = 'Fetch Avatars';
+                    console.error('Error in processBatch:', error);
+                    this.showError('Processing failed. Check console for details.');
                 }
             }
 
@@ -440,16 +454,33 @@
             }
 
             async fetchAvatarBatch(userIds) {
-                const userIdsParam = userIds.join(',');
-                const apiUrl = `https://thumbnails.roblox.com/v1/users/avatar?userIds=${userIdsParam}&size=420x420&format=Png&isCircular=false`;
-                
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
-                
-                const response = await fetch(proxyUrl);
-                const proxyData = await response.json();
-                const data = JSON.parse(proxyData.contents);
-                
-                return data.data.filter(avatar => avatar.state === 'Completed');
+                try {
+                    const userIdsParam = userIds.join(',');
+                    const apiUrl = `https://thumbnails.roblox.com/v1/users/avatar?userIds=${userIdsParam}&size=420x420&format=Png&isCircular=false`;
+                    
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
+                    
+                    const response = await fetch(proxyUrl);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Proxy request failed with status ${response.status}`);
+                    }
+                    
+                    const proxyData = await response.json();
+                    
+                    if (!proxyData.contents) {
+                        throw new Error('No contents in proxy response');
+                    }
+                    
+                    const data = JSON.parse(proxyData.contents);
+                    
+                    const completedAvatars = data.data.filter(avatar => avatar.state === 'Completed');
+                    
+                    return completedAvatars;
+                } catch (error) {
+                    console.error('Error in fetchAvatarBatch:', error);
+                    throw error;
+                }
             }
 
             delay(ms) {
@@ -462,7 +493,7 @@
                 this.updateResultsCount();
             }
 
-            appendNewAvatars(newAvatars) {
+            displayNewAvatars(newAvatars) {
                 if (this.avatarGrid.children.length === 0) {
                     this.displayResults();
                 }
