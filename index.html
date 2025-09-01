@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roblox Avatar Downloader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .input-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-ids-input {
+            width: 100%;
+            height: 120px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: vertical;
+            font-family: monospace;
+        }
+
+        .user-ids-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background-color: #45a049;
+        }
+
+        .btn-secondary {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background-color: #1976D2;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .progress-section {
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .results-header h2 {
+            color: #333;
+        }
+
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .avatar-card {
+            background: #f9f9f9;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .avatar-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .avatar-image {
+            width: 200px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 2px solid #ddd;
+        }
+
+        .avatar-info {
+            margin-bottom: 10px;
+        }
+
+        .user-id {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        .error-message {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .avatar-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Roblox Avatar Downloader</h1>
+            <p>Download avatar images from Roblox user IDs</p>
+        </div>
+
+        <div class="input-section">
+            <label for="userIds">Enter Roblox User IDs:</label>
+            <textarea 
+                id="userIds" 
+                class="user-ids-input" 
+                placeholder="Enter user IDs separated by commas or new lines&#10;Example:&#10;1498897008&#10;2345678901&#10;3456789012"
+            ></textarea>
+            <div class="help-text">
+                Enter one or more Roblox user IDs. You can separate them with commas, spaces, or new lines.
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="fetchBtn" class="btn btn-primary">
+                Fetch Avatars
+            </button>
+            <button id="downloadAllBtn" class="btn btn-secondary" style="display: none;">
+                Download All Images
+            </button>
+            <button id="clearBtn" class="btn" style="background-color: #f44336; color: white;">
+                Clear Results
+            </button>
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+
+        <div id="progressSection" class="progress-section">
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+            <div id="progressText" class="progress-text">Fetching avatars...</div>
+        </div>
+
+        <div id="resultsSection" class="results-section">
+            <div class="results-header">
+                <h2>Avatar Results</h2>
+                <span id="resultsCount"></span>
+            </div>
+            <div id="avatarGrid" class="avatar-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        class RobloxAvatarDownloader {
+            constructor() {
+                this.initializeElements();
+                this.attachEventListeners();
+                this.avatars = [];
+            }
+
+            initializeElements() {
+                this.userIdsInput = document.getElementById('userIds');
+                this.fetchBtn = document.getElementById('fetchBtn');
+                this.downloadAllBtn = document.getElementById('downloadAllBtn');
+                this.clearBtn = document.getElementById('clearBtn');
+                this.errorMessage = document.getElementById('errorMessage');
+                this.progressSection = document.getElementById('progressSection');
+                this.progressFill = document.getElementById('progressFill');
+                this.progressText = document.getElementById('progressText');
+                this.resultsSection = document.getElementById('resultsSection');
+                this.avatarGrid = document.getElementById('avatarGrid');
+                this.resultsCount = document.getElementById('resultsCount');
+            }
+
+            attachEventListeners() {
+                this.fetchBtn.addEventListener('click', () => this.fetchAvatars());
+                this.downloadAllBtn.addEventListener('click', () => this.downloadAllImages());
+                this.clearBtn.addEventListener('click', () => this.clearResults());
+            }
+
+            parseUserIds(input) {
+                return input
+                    .split(/[,\n\r\s]+/)
+                    .map(id => id.trim())
+                    .filter(id => id && /^\d+$/.test(id))
+                    .map(id => parseInt(id));
+            }
+
+            showError(message) {
+                this.errorMessage.textContent = message;
+                this.errorMessage.style.display = 'block';
+                setTimeout(() => {
+                    this.errorMessage.style.display = 'none';
+                }, 5000);
+            }
+
+            updateProgress(current, total, text) {
+                const percentage = (current / total) * 100;
+                this.progressFill.style.width = percentage + '%';
+                this.progressText.textContent = text || `Processing ${current} of ${total}...`;
+            }
+
+            async fetchAvatars() {
+                const input = this.userIdsInput.value.trim();
+                
+                if (!input) {
+                    this.showError('Please enter at least one user ID');
+                    return;
+                }
+
+                const userIds = this.parseUserIds(input);
+                
+                if (userIds.length === 0) {
+                    this.showError('Please enter valid numeric user IDs');
+                    return;
+                }
+
+                if (userIds.length > 50) {
+                    this.showError('Please limit to 50 user IDs at a time');
+                    return;
+                }
+
+                this.fetchBtn.disabled = true;
+                this.fetchBtn.innerHTML = '<span class="loading-spinner"></span>Fetching...';
+                this.progressSection.style.display = 'block';
+                this.clearResults();
+
+                try {
+                    this.avatars = [];
+                    
+                    for (let i = 0; i < userIds.length; i += 10) {
+                        const batch = userIds.slice(i, i + 10);
+                        this.updateProgress(i, userIds.length, `Fetching batch ${Math.floor(i/10) + 1}...`);
+                        
+                        try {
+                            const batchResults = await this.fetchAvatarBatch(batch);
+                            this.avatars.push(...batchResults);
+                        } catch (error) {
+                            console.error('Batch fetch error:', error);
+                        }
+                        
+                        if (i + 10 < userIds.length) {
+                            await this.delay(500);
+                        }
+                    }
+
+                    this.updateProgress(userIds.length, userIds.length, 'Complete!');
+                    this.displayResults();
+
+                } catch (error) {
+                    this.showError('Failed to fetch avatars. Please try again.');
+                    console.error('Fetch error:', error);
+                } finally {
+                    this.fetchBtn.disabled = false;
+                    this.fetchBtn.textContent = 'Fetch Avatars';
+                    setTimeout(() => {
+                        this.progressSection.style.display = 'none';
+                    }, 2000);
+                }
+            }
+
+            async fetchAvatarBatch(userIds) {
+                const userIdsParam = userIds.join(',');
+                const apiUrl = `https://thumbnails.roblox.com/v1/users/avatar?userIds=${userIdsParam}&size=420x420&format=Png&isCircular=false`;
+                
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
+                
+                const response = await fetch(proxyUrl);
+                const proxyData = await response.json();
+                const data = JSON.parse(proxyData.contents);
+                
+                return data.data.filter(avatar => avatar.state === 'Completed');
+            }
+
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            displayResults() {
+                if (this.avatars.length === 0) {
+                    this.showError('No avatars found for the provided user IDs');
+                    return;
+                }
+
+                this.resultsSection.style.display = 'block';
+                this.downloadAllBtn.style.display = 'inline-block';
+                this.resultsCount.textContent = `${this.avatars.length} avatar(s) found`;
+
+                this.avatarGrid.innerHTML = '';
+
+                this.avatars.forEach(avatar => {
+                    const card = this.createAvatarCard(avatar);
+                    this.avatarGrid.appendChild(card);
+                });
+            }
+
+            createAvatarCard(avatar) {
+                const card = document.createElement('div');
+                card.className = 'avatar-card';
+
+                card.innerHTML = `
+                    <img src="${avatar.imageUrl}" alt="Avatar ${avatar.targetId}" class="avatar-image" />
+                    <div class="avatar-info">
+                        <div class="user-id">User ID: ${avatar.targetId}</div>
+                    </div>
+                    <button class="btn btn-secondary btn-small" onclick="app.downloadImage('${avatar.imageUrl}', ${avatar.targetId})">
+                        Download
+                    </button>
+                `;
+
+                return card;
+            }
+
+            async downloadImage(imageUrl, userId) {
+                try {
+                    const response = await fetch(imageUrl);
+                    const blob = await response.blob();
+                    
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `roblox_avatar_${userId}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                } catch (error) {
+                    this.showError(`Failed to download avatar for user ${userId}`);
+                    console.error('Download error:', error);
+                }
+            }
+
+            async downloadAllImages() {
+                if (this.avatars.length === 0) return;
+
+                this.downloadAllBtn.disabled = true;
+                this.downloadAllBtn.innerHTML = '<span class="loading-spinner"></span>Downloading...';
+
+                for (let i = 0; i < this.avatars.length; i++) {
+                    const avatar = this.avatars[i];
+                    await this.downloadImage(avatar.imageUrl, avatar.targetId);
+                    await this.delay(100);
+                }
+
+                this.downloadAllBtn.disabled = false;
+                this.downloadAllBtn.textContent = 'Download All Images';
+            }
+
+            clearResults() {
+                this.resultsSection.style.display = 'none';
+                this.downloadAllBtn.style.display = 'none';
+                this.avatarGrid.innerHTML = '';
+                this.avatars = [];
+                this.progressSection.style.display = 'none';
+            }
+        }
+
+        const app = new RobloxAvatarDownloader();
+    </script>
+</body>
+</html>
