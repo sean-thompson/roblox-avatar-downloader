@@ -266,6 +266,9 @@
             <button id="downloadAllBtn" class="btn btn-secondary" style="display: none;">
                 Download All Images
             </button>
+            <button id="continueBtn" class="btn" style="background-color: #FF9800; color: white; display: none;">
+                Continue Processing
+            </button>
             <button id="clearBtn" class="btn" style="background-color: #f44336; color: white;">
                 Clear Results
             </button>
@@ -295,12 +298,16 @@
                 this.initializeElements();
                 this.attachEventListeners();
                 this.avatars = [];
+                this.allUserIds = [];
+                this.currentBatchIndex = 0;
+                this.batchSize = 50;
             }
 
             initializeElements() {
                 this.userIdsInput = document.getElementById('userIds');
                 this.fetchBtn = document.getElementById('fetchBtn');
                 this.downloadAllBtn = document.getElementById('downloadAllBtn');
+                this.continueBtn = document.getElementById('continueBtn');
                 this.clearBtn = document.getElementById('clearBtn');
                 this.errorMessage = document.getElementById('errorMessage');
                 this.progressSection = document.getElementById('progressSection');
@@ -314,6 +321,7 @@
             attachEventListeners() {
                 this.fetchBtn.addEventListener('click', () => this.fetchAvatars());
                 this.downloadAllBtn.addEventListener('click', () => this.downloadAllImages());
+                this.continueBtn.addEventListener('click', () => this.continueProcessing());
                 this.clearBtn.addEventListener('click', () => this.clearResults());
             }
 
@@ -354,48 +362,81 @@
                     return;
                 }
 
-                if (userIds.length > 50) {
-                    this.showError('Please limit to 50 user IDs at a time');
+                this.allUserIds = userIds;
+                this.currentBatchIndex = 0;
+                this.avatars = [];
+                this.clearResults();
+                
+                await this.processBatch();
+            }
+
+            async processBatch() {
+                const startIndex = this.currentBatchIndex * this.batchSize;
+                const endIndex = Math.min(startIndex + this.batchSize, this.allUserIds.length);
+                const currentBatch = this.allUserIds.slice(startIndex, endIndex);
+
+                if (currentBatch.length === 0) {
                     return;
                 }
 
                 this.fetchBtn.disabled = true;
-                this.fetchBtn.innerHTML = '<span class="loading-spinner"></span>Fetching...';
+                this.continueBtn.disabled = true;
+                this.fetchBtn.innerHTML = '<span class="loading-spinner"></span>Processing...';
                 this.progressSection.style.display = 'block';
-                this.clearResults();
 
                 try {
-                    this.avatars = [];
-                    
-                    for (let i = 0; i < userIds.length; i += 10) {
-                        const batch = userIds.slice(i, i + 10);
-                        this.updateProgress(i, userIds.length, `Fetching batch ${Math.floor(i/10) + 1}...`);
+                    for (let i = 0; i < currentBatch.length; i += 10) {
+                        const batch = currentBatch.slice(i, i + 10);
+                        const overallProgress = startIndex + i;
+                        this.updateProgress(
+                            overallProgress, 
+                            this.allUserIds.length, 
+                            `Processing ${overallProgress + 1}-${Math.min(overallProgress + 10, endIndex)} of ${this.allUserIds.length}...`
+                        );
                         
                         try {
                             const batchResults = await this.fetchAvatarBatch(batch);
                             this.avatars.push(...batchResults);
+                            this.appendNewAvatars(batchResults);
                         } catch (error) {
                             console.error('Batch fetch error:', error);
                         }
                         
-                        if (i + 10 < userIds.length) {
+                        if (i + 10 < currentBatch.length) {
                             await this.delay(500);
                         }
                     }
 
-                    this.updateProgress(userIds.length, userIds.length, 'Complete!');
-                    this.displayResults();
+                    this.currentBatchIndex++;
+                    const hasMore = endIndex < this.allUserIds.length;
+                    
+                    if (hasMore) {
+                        const remaining = this.allUserIds.length - endIndex;
+                        this.updateProgress(endIndex, this.allUserIds.length, `Processed ${endIndex} of ${this.allUserIds.length}. Click Continue for ${remaining} more.`);
+                        this.continueBtn.style.display = 'inline-block';
+                        this.continueBtn.textContent = `Continue Processing (${remaining} remaining)`;
+                    } else {
+                        this.updateProgress(this.allUserIds.length, this.allUserIds.length, `Complete! Processed all ${this.allUserIds.length} user IDs.`);
+                        setTimeout(() => {
+                            this.progressSection.style.display = 'none';
+                        }, 3000);
+                    }
+
+                    this.updateResultsCount();
 
                 } catch (error) {
                     this.showError('Failed to fetch avatars. Please try again.');
                     console.error('Fetch error:', error);
                 } finally {
                     this.fetchBtn.disabled = false;
+                    this.continueBtn.disabled = false;
                     this.fetchBtn.textContent = 'Fetch Avatars';
-                    setTimeout(() => {
-                        this.progressSection.style.display = 'none';
-                    }, 2000);
                 }
+            }
+
+            async continueProcessing() {
+                this.continueBtn.style.display = 'none';
+                await this.processBatch();
             }
 
             async fetchAvatarBatch(userIds) {
@@ -416,21 +457,24 @@
             }
 
             displayResults() {
-                if (this.avatars.length === 0) {
-                    this.showError('No avatars found for the provided user IDs');
-                    return;
-                }
-
                 this.resultsSection.style.display = 'block';
                 this.downloadAllBtn.style.display = 'inline-block';
-                this.resultsCount.textContent = `${this.avatars.length} avatar(s) found`;
+                this.updateResultsCount();
+            }
 
-                this.avatarGrid.innerHTML = '';
+            appendNewAvatars(newAvatars) {
+                if (this.avatarGrid.children.length === 0) {
+                    this.displayResults();
+                }
 
-                this.avatars.forEach(avatar => {
+                newAvatars.forEach(avatar => {
                     const card = this.createAvatarCard(avatar);
                     this.avatarGrid.appendChild(card);
                 });
+            }
+
+            updateResultsCount() {
+                this.resultsCount.textContent = `${this.avatars.length} avatar(s) found`;
             }
 
             createAvatarCard(avatar) {
@@ -488,8 +532,11 @@
             clearResults() {
                 this.resultsSection.style.display = 'none';
                 this.downloadAllBtn.style.display = 'none';
+                this.continueBtn.style.display = 'none';
                 this.avatarGrid.innerHTML = '';
                 this.avatars = [];
+                this.allUserIds = [];
+                this.currentBatchIndex = 0;
                 this.progressSection.style.display = 'none';
             }
         }
