@@ -454,33 +454,49 @@
             }
 
             async fetchAvatarBatch(userIds) {
-                try {
-                    const userIdsParam = userIds.join(',');
-                    const apiUrl = `https://thumbnails.roblox.com/v1/users/avatar?userIds=${userIdsParam}&size=420x420&format=Png&isCircular=false`;
-                    
-                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
-                    
-                    const response = await fetch(proxyUrl);
-                    
-                    if (!response.ok) {
-                        throw new Error(`Proxy request failed with status ${response.status}`);
+                const userIdsParam = userIds.join(',');
+                const apiUrl = `https://thumbnails.roblox.com/v1/users/avatar?userIds=${userIdsParam}&size=420x420&format=Png&isCircular=false`;
+
+                const proxies = [
+                    { url: `https://corsproxy.io/?url=${encodeURIComponent(apiUrl)}`, wrapped: false },
+                    { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(apiUrl)}`, wrapped: false },
+                    { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`, wrapped: false },
+                    { url: `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`, wrapped: true },
+                    { url: `https://thingproxy.freeboard.io/fetch/${apiUrl}`, wrapped: false },
+                ];
+
+                let lastError;
+                for (const proxy of proxies) {
+                    try {
+                        const response = await fetch(proxy.url);
+                        if (!response.ok) {
+                            lastError = new Error(`Proxy returned ${response.status}: ${proxy.url}`);
+                            continue;
+                        }
+                        let data;
+                        if (proxy.wrapped) {
+                            const proxyData = await response.json();
+                            if (!proxyData.contents) {
+                                lastError = new Error('No contents in proxy response');
+                                continue;
+                            }
+                            data = JSON.parse(proxyData.contents);
+                        } else {
+                            data = await response.json();
+                        }
+                        if (!data || !Array.isArray(data.data)) {
+                            lastError = new Error('Unexpected response shape from proxy');
+                            continue;
+                        }
+                        return data.data.filter(avatar => avatar.state === 'Completed');
+                    } catch (error) {
+                        lastError = error;
+                        continue;
                     }
-                    
-                    const proxyData = await response.json();
-                    
-                    if (!proxyData.contents) {
-                        throw new Error('No contents in proxy response');
-                    }
-                    
-                    const data = JSON.parse(proxyData.contents);
-                    
-                    const completedAvatars = data.data.filter(avatar => avatar.state === 'Completed');
-                    
-                    return completedAvatars;
-                } catch (error) {
-                    console.error('Error in fetchAvatarBatch:', error);
-                    throw error;
                 }
+
+                console.error('All CORS proxies failed. Last error:', lastError);
+                throw lastError || new Error('All CORS proxies failed');
             }
 
             delay(ms) {
