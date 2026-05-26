@@ -458,11 +458,11 @@
                 const apiUrl = `https://thumbnails.roblox.com/v1/users/avatar?userIds=${userIdsParam}&size=420x420&format=Png&isCircular=false`;
 
                 const proxies = [
+                    { url: `/api/avatars?userIds=${userIdsParam}&size=420x420`, wrapped: false },
                     { url: `https://corsproxy.io/?url=${encodeURIComponent(apiUrl)}`, wrapped: false },
                     { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(apiUrl)}`, wrapped: false },
                     { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`, wrapped: false },
                     { url: `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`, wrapped: true },
-                    { url: `https://thingproxy.freeboard.io/fetch/${apiUrl}`, wrapped: false },
                 ];
 
                 let lastError;
